@@ -1,0 +1,116 @@
+# OpenDB MCP Server Configuration Example
+#
+# This file demonstrates all configuration options.
+# Environment variables can be used with ${VAR_NAME} or ${VAR_NAME:-default}
+
+[settings]
+# Default read-only mode for all sources (can be overridden per source)
+readonly = false
+
+# Maximum rows to return from queries (1-100000)
+max_rows = 1000
+
+# Query timeout in seconds
+query_timeout = 30
+
+# Connection timeout in seconds
+connection_timeout = 10
+
+
+# PostgreSQL Example (DSN-based)
+[[sources]]
+id = "postgres-prod"
+type = "postgres"
+dsn = "${POSTGRES_DSN:-postgres://localhost:5432/mydb}"
+# readonly = true  # Uncomment to make this source read-only
+
+
+# PostgreSQL Example (host-based)
+[[sources]]
+id = "postgres-dev"
+type = "postgres"
+host = "${POSTGRES_HOST:-localhost}"
+port = 5432
+database = "devdb"
+user = "${POSTGRES_USER:-postgres}"
+password = "${POSTGRES_PASSWORD}"
+ssl = false
+
+
+# MySQL Example
+[[sources]]
+id = "mysql-main"
+type = "mysql"
+host = "${MYSQL_HOST:-localhost}"
+port = 3306
+database = "app"
+user = "${MYSQL_USER:-root}"
+password = "${MYSQL_PASSWORD}"
+
+
+# MariaDB Example
+[[sources]]
+id = "mariadb-analytics"
+type = "mariadb"
+dsn = "${MARIADB_DSN:-mariadb://localhost:3306/analytics}"
+
+
+# SQLite Example
+[[sources]]
+id = "sqlite-local"
+type = "sqlite"
+path = "${SQLITE_PATH:-./data/local.db}"
+readonly = true  # Recommended for SQLite files
+
+
+# SQLite In-Memory Example
+[[sources]]
+id = "sqlite-memory"
+type = "sqlite"
+path = ":memory:"
+
+
+# Apache Hive Example (no auth)
+[[sources]]
+id = "hive-warehouse"
+type = "hive"
+host = "${HIVE_HOST:-hiveserver.example.com}"
+port = 10000
+database = "default"
+auth_mechanism = "NONE"
+
+
+# Apache Hive Example (Kerberos)
+[[sources]]
+id = "hive-secure"
+type = "hive"
+host = "secure-hive.example.com"
+port = 10000
+database = "production"
+auth_mechanism = "KERBEROS"
+principal = "hive/_HOST@EXAMPLE.COM"
+keytab = "/etc/security/keytabs/user.keytab"
+user_principal = "user@EXAMPLE.COM"
+
+
+# Apache Impala Example
+[[sources]]
+id = "impala-analytics"
+type = "impala"
+host = "${IMPALA_HOST:-impala.example.com}"
+port = 21050
+database = "analytics"
+auth_mechanism = "NONE"
+
+
+# Apache Impala Example (Kerberos)
+[[sources]]
+id = "impala-secure"
+type = "impala"
+host = "secure-impala.example.com"
+port = 21050
+database = "secure_db"
+auth_mechanism = "KERBEROS"
+principal = "impala/_HOST@EXAMPLE.COM"
+keytab = "/etc/security/keytabs/user.keytab"
+user_principal = "user@EXAMPLE.COM"

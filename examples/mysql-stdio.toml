@@ -1,0 +1,13 @@
+# MySQL configuration for stdio transport (Claude Desktop)
+
+[settings]
+readonly = true
+max_rows = 1000
+
+[[sources]]
+id = "mysql"
+type = "mysql"
+host = "localhost"
+port = 3306
+user = "root"
+password = "${OPEN_DB_MYSQL_PWD}"

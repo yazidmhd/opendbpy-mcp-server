@@ -3,7 +3,7 @@
 OpenDB MCP Server - Main entry point.
 
 Multi-database MCP server supporting PostgreSQL, MySQL, MariaDB,
-SQLite, Hive, and Impala with Kerberos authentication.
+Hive, and Impala with Kerberos authentication.
 """
 
 import argparse
@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         prog=SERVER_NAME,
-        description="Multi-database MCP server supporting PostgreSQL, MySQL, MariaDB, SQLite, Hive, and Impala.",
+        description="Multi-database MCP server supporting PostgreSQL, MySQL, MariaDB, Hive, and Impala.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 USAGE:

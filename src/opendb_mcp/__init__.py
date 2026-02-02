@@ -1,7 +1,7 @@
 """
 OpenDB MCP Server - Multi-database MCP server for Python.
 
-Supports PostgreSQL, MySQL, MariaDB, SQLite, Hive, and Impala
+Supports PostgreSQL, MySQL, MariaDB, Hive, and Impala
 with Kerberos authentication for Hive/Impala.
 """
 

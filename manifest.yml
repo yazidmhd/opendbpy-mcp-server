@@ -1,0 +1,13 @@
+---
+applications:
+  - name: opendb-mcp
+    memory: 512M
+    instances: 1
+    buildpacks:
+      - python_buildpack
+    command: python -m opendb_mcp --config config/opendb.toml
+    env:
+      TRANSPORT: http
+      PYTHONUNBUFFERED: "1"
+    health-check-type: http
+    health-check-http-endpoint: /health

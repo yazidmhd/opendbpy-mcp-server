@@ -1,0 +1,34 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+
+# Dev files
+.git/
+.gitignore
+.idea/
+.vscode/
+*.log
+.DS_Store
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configs
+.env
+*.local.toml
+
+# Type checking
+.mypy_cache/

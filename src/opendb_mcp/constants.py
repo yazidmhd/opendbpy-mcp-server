@@ -29,13 +29,12 @@ DEFAULT_PORTS: dict[str, int] = {
     "postgres": 5432,
     "mysql": 3306,
     "mariadb": 3306,
-    "sqlite": 0,  # SQLite uses file paths
     "hive": 10000,
     "impala": 21050,
 }
 
 # Database types supported
-DATABASE_TYPES = ("postgres", "mysql", "mariadb", "sqlite", "hive", "impala")
+DATABASE_TYPES = ("postgres", "mysql", "mariadb", "hive", "impala")
 
 # Authentication mechanisms for Hive/Impala
 AUTH_MECHANISMS = ("NONE", "PLAIN", "KERBEROS")

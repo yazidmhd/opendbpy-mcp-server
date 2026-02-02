@@ -5,99 +5,43 @@ build-backend = "hatchling.build"
 [project]
 name = "opendb-mcp-server"
 version = "1.0.0"
-description = "Multi-database MCP server supporting PostgreSQL, MySQL, MariaDB, SQLite, Hive, and Impala"
-readme = "README.md"
-license = "MIT"
-requires-python = ">=3.9"
-authors = [
-    { name = "OpenDB Team" }
-]
-keywords = ["mcp", "database", "postgresql", "mysql", "sqlite", "hive", "impala"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
+description = "Multi-database MCP server supporting PostgreSQL, MySQL, MariaDB, Hive, and Impala"
+requires-python = ">=3.10"
 
 dependencies = [
     "mcp>=1.2.0",
     "pydantic>=2.0",
-    "aiosqlite>=0.19",
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
-# HTTP transport support
-http = [
-    "starlette>=0.27",
-    "uvicorn>=0.23",
-]
-
-# PostgreSQL support
-postgres = [
-    "asyncpg>=0.29",
-]
-
-# MySQL/MariaDB support
-mysql = [
-    "aiomysql>=0.2",
-]
-
-# Hive/Impala support
+http = ["starlette>=0.27", "uvicorn>=0.23"]
+postgres = ["asyncpg>=0.29"]
+mysql = ["aiomysql>=0.2"]
 hive = [
-    "pyhive[hive]>=0.7",
+    "pyhive[hive_pure_sasl]>=0.7",
     "thrift>=0.16",
-    "thrift-sasl>=0.4",
     "pure-sasl>=0.6",
 ]
-
-# All database drivers
 all = [
-    "opendb-mcp-server[http,postgres,mysql,hive]",
+    "starlette>=0.27",
+    "uvicorn>=0.23",
+    "asyncpg>=0.29",
+    "aiomysql>=0.2",
+    "pyhive[hive_pure_sasl]>=0.7",
+    "thrift>=0.16",
+    "pure-sasl>=0.6",
 ]
-
-# Development dependencies
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
-    "pytest-cov>=4.0",
-    "mypy>=1.0",
-    "ruff>=0.1.0",
 ]
 
 [project.scripts]
 opendb-mcp-server = "opendb_mcp.__main__:main"
 
-[project.urls]
-Homepage = "https://github.com/anthropics/opendb-mcp-server"
-Documentation = "https://github.com/anthropics/opendb-mcp-server#readme"
-Repository = "https://github.com/anthropics/opendb-mcp-server"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/opendb_mcp"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src",
-]
-
-[tool.ruff]
-line-length = 100
-target-version = "py39"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
-ignore = ["E501"]
-
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

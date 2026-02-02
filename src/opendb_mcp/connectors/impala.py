@@ -41,7 +41,7 @@ class ImpalaConnector(BaseConnector):
 
         if hive is None:
             raise ImportError(
-                "pyhive is required for Impala. Install with: pip install 'pyhive[hive]'"
+                "pyhive is required for Impala. Install with: pip install 'pyhive[hive_pure_sasl]'"
             )
 
         config = self._config

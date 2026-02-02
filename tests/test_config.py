@@ -86,16 +86,6 @@ class TestSourceConfigParsing:
         assert config.host == "localhost"
         assert config.port == 5432
 
-    def test_sqlite(self):
-        config = parse_source_config({
-            "id": "sqlite-test",
-            "type": "sqlite",
-            "path": ":memory:"
-        })
-        assert config.id == "sqlite-test"
-        assert config.type == "sqlite"
-        assert config.path == ":memory:"
-
     def test_hive_kerberos(self):
         config = parse_source_config({
             "id": "hive-test",

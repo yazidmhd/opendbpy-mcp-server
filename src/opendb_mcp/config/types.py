@@ -6,7 +6,7 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
-DatabaseType = Literal["postgres", "mysql", "mariadb", "sqlite", "hive", "impala"]
+DatabaseType = Literal["postgres", "mysql", "mariadb", "hive", "impala"]
 AuthMechanism = Literal["NONE", "PLAIN", "KERBEROS"]
 ResponseFormat = Literal["markdown", "json"]
 ObjectType = Literal["schema", "table", "column", "index", "procedure"]
@@ -37,13 +37,6 @@ class HostBasedSourceConfig(BaseSourceConfig):
     ssl: Optional[bool] = Field(None, description="Enable SSL")
 
 
-class SqliteSourceConfig(BaseSourceConfig):
-    """Configuration for SQLite connections."""
-
-    type: Literal["sqlite"] = "sqlite"
-    path: str = Field(..., description="Path to SQLite database file (or :memory:)")
-
-
 class KerberosSourceConfig(BaseSourceConfig):
     """Configuration for Kerberos-authenticated connections (Hive/Impala)."""
 
@@ -61,7 +54,6 @@ class KerberosSourceConfig(BaseSourceConfig):
 SourceConfig = Union[
     DsnSourceConfig,
     HostBasedSourceConfig,
-    SqliteSourceConfig,
     KerberosSourceConfig,
 ]
 
@@ -105,9 +97,6 @@ class ParsedConfig(BaseModel):
 def parse_source_config(data: dict) -> SourceConfig:
     """Parse a source configuration dictionary into the appropriate model."""
     source_type = data.get("type")
-
-    if source_type == "sqlite":
-        return SqliteSourceConfig(**data)
 
     if source_type in ("hive", "impala"):
         # Check if it's a Kerberos config

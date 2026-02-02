@@ -205,7 +205,7 @@ class OpenDBServer:
         try:
             from starlette.applications import Starlette
             from starlette.responses import JSONResponse
-            from starlette.routing import Route, Mount
+            from starlette.routing import Route
             from mcp.server.streamable_http import StreamableHTTPServerTransport
             import uvicorn
         except ImportError as e:
@@ -228,13 +228,18 @@ class OpenDBServer:
                 "sources": self.connector_manager.list_source_ids(),
             })
 
-        # Mount the transport's handle_request directly as an ASGI app
-        app = Starlette(
-            routes=[
-                Route("/health", health_check, methods=["GET"]),
-                Mount("/mcp", app=http_transport.handle_request),
-            ]
-        )
+        async def mcp_endpoint(request: Any) -> Any:
+            """MCP endpoint for streamable HTTP transport."""
+            await http_transport.handle_request(
+                request.scope, request.receive, request._send
+            )
+
+        routes = [
+            Route("/health", health_check, methods=["GET"]),
+            Route("/mcp", mcp_endpoint, methods=["GET", "POST", "DELETE"]),
+        ]
+
+        app = Starlette(routes=routes)
 
         config = uvicorn.Config(
             app,

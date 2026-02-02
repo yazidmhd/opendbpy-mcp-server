@@ -120,7 +120,7 @@ class TestSourcesListFormatting:
 
     def test_json_output(self):
         sources = [
-            SourceInfo(id="test", type="sqlite", readonly=False, connected=True),
+            SourceInfo(id="test", type="postgres", readonly=False, connected=True),
         ]
         output = format_sources_list(sources, "json")
         data = json.loads(output)

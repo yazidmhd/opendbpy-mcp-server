@@ -1,21 +1,20 @@
 # OpenDB MCP Server (Python)
 
-A multi-database MCP (Model Context Protocol) server for Python, supporting PostgreSQL, MySQL/MariaDB, SQLite, Apache Hive, and Apache Impala with Kerberos authentication.
+A multi-database MCP (Model Context Protocol) server for Python, supporting PostgreSQL, MySQL/MariaDB, Apache Hive, and Apache Impala with Kerberos authentication.
 
 ## Supported Databases
 
-| Database      | Driver      |
-| ------------- | ----------- |
-| PostgreSQL    | `asyncpg`   |
-| MySQL         | `aiomysql`  |
-| MariaDB       | `aiomysql`  |
-| SQLite        | `aiosqlite` |
-| Apache Hive   | `pyhive`    |
-| Apache Impala | `pyhive`    |
+| Database      | Driver     |
+| ------------- | ---------- |
+| PostgreSQL    | `asyncpg`  |
+| MySQL         | `aiomysql` |
+| MariaDB       | `aiomysql` |
+| Apache Hive   | `pyhive`   |
+| Apache Impala | `pyhive`   |
 
 ## Prerequisites
 
-- Python >= 3.9
+- Python >= 3.10
 - uv or pip
 
 ## Quick Start (From Source)
@@ -55,6 +54,9 @@ uv pip install -e ".[all]"
 
 # Using pip
 pip install -e ".[all]"
+
+# Or install from requirements.txt (for PCF/production)
+pip install -r requirements.txt
 ```
 
 ### 5. Configure Database
@@ -90,48 +92,32 @@ Choose one of the following methods to run the server:
 
 ## Option A: HTTP Transport
 
-HTTP runs the server in the background. Good for shared/remote access.
+HTTP runs the server as a web service. Good for shared/remote access.
 
-### Find Your IP Address
-
-```bash
-# macOS
-ipconfig getifaddr en0
-
-# Linux
-hostname -I | awk '{print $1}'
-```
-
-### Setup
-
-1. Edit `start.sh` and update the `--config` path:
+### Start Server
 
 ```bash
-CONFIG="/path/to/your/config.toml"
+# Run in foreground
+TRANSPORT=http python3 -m opendb_mcp --config config/opendb.toml
+
+# Run in background
+TRANSPORT=http python3 -m opendb_mcp --config config/opendb.toml &
+
+# Run on custom port (default: 3000)
+TRANSPORT=http PORT=8080 python3 -m opendb_mcp --config config/opendb.toml
 ```
 
-2. Create logs directory:
+### Stop Server
 
 ```bash
-sudo mkdir -p /devlogs && sudo chown $USER /devlogs
+# If running in background, find and kill the process
+pkill -f "opendb_mcp"
 ```
-
-### Start/Stop Server
-
-```bash
-# Start
-./start.sh
-
-# Stop
-./stop.sh
-```
-
-Logs are stored in `/devlogs/opendbpy-{timestamp}.log`.
 
 ### Add to Claude Code (HTTP)
 
 ```bash
-claude mcp add opendb --transport http --url http://192.168.1.51:3000/mcp
+claude mcp add opendb --transport http --url http://localhost:3000/mcp
 ```
 
 ### Test with MCP Inspector (HTTP)
@@ -140,7 +126,7 @@ claude mcp add opendb --transport http --url http://192.168.1.51:3000/mcp
 npx @modelcontextprotocol/inspector
 ```
 
-Then enter `http://192.168.1.51:3000/mcp` in the UI.
+Then enter `http://localhost:3000/mcp` in the UI.
 
 ---
 
@@ -249,15 +235,6 @@ password = "pass"
 ssl = true
 ```
 
-#### SQLite
-
-```toml
-[[sources]]
-id = "local-db"
-type = "sqlite"
-path = "./data/app.db"  # or ":memory:"
-```
-
 #### Hive / Impala
 
 ```toml
@@ -345,7 +322,6 @@ opendbpy-mcp-server/
 │   │   ├── base.py           # Abstract base class
 │   │   ├── postgres.py       # PostgreSQL (asyncpg)
 │   │   ├── mysql.py          # MySQL/MariaDB (aiomysql)
-│   │   ├── sqlite.py         # SQLite (aiosqlite)
 │   │   ├── hive.py           # Hive (pyhive)
 │   │   └── impala.py         # Impala (pyhive)
 │   ├── tools/                # MCP tools
@@ -360,10 +336,64 @@ opendbpy-mcp-server/
 │       └── errors.py         # Custom exceptions
 ├── examples/
 │   ├── mysql-local.toml      # MySQL HTTP example
-│   ├── mysql-stdio.toml      # MySQL stdio example
-│   └── sqlite-test.toml      # SQLite test example
+│   └── mysql-stdio.toml      # MySQL stdio example
 ├── start.sh                  # Start HTTP server
 └── stop.sh                   # Stop HTTP server
+```
+
+## PCF Deployment
+
+This server is designed for deployment on Pivotal Cloud Foundry (PCF).
+
+### Prerequisites
+
+- PCF CLI (`cf`) installed and logged in
+- Database service instance bound or external database accessible
+
+### Files for PCF
+
+- `manifest.yml` - PCF application manifest
+- `requirements.txt` - Python dependencies (used by PCF buildpack)
+- `runtime.txt` - Python version specification
+- `config/` - Configuration directory
+
+### Deploy to PCF
+
+1. **Update configuration**: Edit `config/opendb.toml` with your database credentials (use environment variables for secrets):
+
+```toml
+[[sources]]
+id = "prod-db"
+type = "postgres"
+host = "${DB_HOST}"
+port = 5432
+database = "${DB_NAME}"
+user = "${DB_USER}"
+password = "${DB_PASSWORD}"
+```
+
+2. **Push the application**:
+
+```bash
+cf push
+```
+
+3. **Set environment variables**:
+
+```bash
+cf set-env opendb-mcp DB_HOST your-db-host
+cf set-env opendb-mcp DB_NAME your-db-name
+cf set-env opendb-mcp DB_USER your-db-user
+cf set-env opendb-mcp DB_PASSWORD your-db-password
+cf restage opendb-mcp
+```
+
+### Health Check
+
+The server exposes a `/health` endpoint for PCF health monitoring.
+
+```bash
+curl https://opendb-mcp.your-pcf-domain.com/health
 ```
 
 ## License

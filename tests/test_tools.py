@@ -1,8 +1,8 @@
 """Tests for MCP tools."""
 
+from unittest.mock import AsyncMock, MagicMock
 import pytest
-from opendb_mcp.config.types import ParsedConfig, Settings, parse_source_config
-from opendb_mcp.connectors import ConnectorManager
+from opendb_mcp.connectors.base import ConnectorOptions, QueryResult
 from opendb_mcp.tools import (
     ExecuteSqlInput,
     ListSourcesInput,
@@ -11,39 +11,42 @@ from opendb_mcp.tools import (
     list_sources,
     search_objects,
 )
+from opendb_mcp.utils.formatters import SchemaObject, SourceInfo
 
 
 @pytest.fixture
-async def manager():
-    """Create a connector manager with SQLite for testing."""
-    config = ParsedConfig(
-        settings=Settings(readonly=False, max_rows=100),
-        sources={
-            "test-db": parse_source_config({
-                "id": "test-db",
-                "type": "sqlite",
-                "path": ":memory:"
-            })
-        }
-    )
-    mgr = ConnectorManager(config)
-    await mgr.connect_all()
+def mock_connector():
+    """Create a mock connector for testing."""
+    connector = MagicMock()
+    connector.db_type = "postgres"
+    connector.is_connected = True
+    connector.options = ConnectorOptions(readonly=False, max_rows=100)
+    connector.execute = AsyncMock(return_value=QueryResult(
+        columns=["id", "name", "email"],
+        rows=[
+            {"id": 1, "name": "Alice", "email": "alice@example.com"},
+            {"id": 2, "name": "Bob", "email": "bob@example.com"},
+        ],
+        row_count=2,
+    ))
+    connector.search_objects = AsyncMock(return_value=[
+        SchemaObject(type="table", name="users", schema="public"),
+        SchemaObject(type="column", name="id", schema="public", table="users", data_type="integer"),
+        SchemaObject(type="column", name="name", schema="public", table="users", data_type="text"),
+        SchemaObject(type="column", name="email", schema="public", table="users", data_type="text"),
+    ])
+    return connector
 
-    # Setup test data
-    connector = mgr.resolve()
-    await connector.execute(
-        "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)"
-    )
-    await connector.execute(
-        "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com')"
-    )
-    await connector.execute(
-        "INSERT INTO users (name, email) VALUES ('Bob', 'bob@example.com')"
-    )
 
-    yield mgr
-
-    await mgr.disconnect_all()
+@pytest.fixture
+def manager(mock_connector):
+    """Create a mock connector manager for testing."""
+    mgr = MagicMock()
+    mgr.resolve = MagicMock(return_value=mock_connector)
+    mgr.list_sources = MagicMock(return_value=[
+        SourceInfo(id="test-db", type="postgres", readonly=False, connected=True)
+    ])
+    return mgr
 
 
 @pytest.mark.asyncio
@@ -93,8 +96,13 @@ class TestSearchObjects:
         assert result.is_error is False
         assert "users" in result.content[0]["text"]
 
-    async def test_search_columns(self, manager):
+    async def test_search_columns(self, manager, mock_connector):
         """Test searching columns."""
+        mock_connector.search_objects = AsyncMock(return_value=[
+            SchemaObject(type="column", name="id", schema="public", table="users", data_type="integer"),
+            SchemaObject(type="column", name="name", schema="public", table="users", data_type="text"),
+            SchemaObject(type="column", name="email", schema="public", table="users", data_type="text"),
+        ])
         result = await search_objects(
             manager,
             SearchObjectsInput(object_type="column", table="users")
@@ -126,7 +134,7 @@ class TestListSources:
         )
         assert result.is_error is False
         assert "test-db" in result.content[0]["text"]
-        assert "sqlite" in result.content[0]["text"]
+        assert "postgres" in result.content[0]["text"]
 
     async def test_json_format(self, manager):
         """Test JSON response format."""

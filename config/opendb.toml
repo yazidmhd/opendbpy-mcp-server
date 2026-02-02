@@ -1,0 +1,55 @@
+# OpenDB MCP Server - PCF Production Configuration
+#
+# Use environment variables for all sensitive values.
+# Set these in PCF with: cf set-env opendb-mcp VAR_NAME value
+
+[settings]
+readonly = true
+max_rows = 1000
+query_timeout = 30
+connection_timeout = 10
+
+# PostgreSQL Example
+# Uncomment and configure as needed
+# [[sources]]
+# id = "postgres-prod"
+# type = "postgres"
+# host = "${POSTGRES_HOST}"
+# port = 5432
+# database = "${POSTGRES_DATABASE}"
+# user = "${POSTGRES_USER}"
+# password = "${POSTGRES_PASSWORD}"
+# ssl = true
+
+# MySQL Example
+# Uncomment and configure as needed
+[[sources]]
+id = "mydb"
+type = "mysql"
+host = "localhost"
+port = 3306
+user = "root"
+password = "password"
+
+# Hive Example
+# Uncomment and configure as needed
+# [[sources]]
+# id = "hive-prod"
+# type = "hive"
+# host = "${HIVE_HOST}"
+# port = 10000
+# database = "default"
+# auth_mechanism = "KERBEROS"
+# principal = "${HIVE_PRINCIPAL}"
+# keytab = "${HIVE_KEYTAB_PATH}"
+# user_principal = "${HIVE_USER_PRINCIPAL}"
+
+# Impala Example
+# Uncomment and configure as needed
+# [[sources]]
+# id = "impala-prod"
+# type = "impala"
+# host = "${IMPALA_HOST}"
+# port = 21050
+# database = "default"
+# auth_mechanism = "NONE"

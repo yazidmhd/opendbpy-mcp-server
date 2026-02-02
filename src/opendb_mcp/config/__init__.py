@@ -14,7 +14,6 @@ from .types import (
     ParsedConfig,
     Settings,
     SourceConfig,
-    SqliteSourceConfig,
 )
 
 __all__ = [
@@ -25,7 +24,6 @@ __all__ = [
     "BaseSourceConfig",
     "DsnSourceConfig",
     "HostBasedSourceConfig",
-    "SqliteSourceConfig",
     "KerberosSourceConfig",
     "SourceConfig",
     "Settings",

@@ -12,7 +12,6 @@ from .hive import HiveConnector
 from .impala import ImpalaConnector
 from .mysql import MySqlConnector
 from .postgres import PostgresConnector
-from .sqlite import SqliteConnector
 
 
 class ConnectorManager:
@@ -50,8 +49,6 @@ class ConnectorManager:
             return PostgresConnector(config, options)
         elif source_type in ("mysql", "mariadb"):
             return MySqlConnector(config, options)
-        elif source_type == "sqlite":
-            return SqliteConnector(config, options)
         elif source_type == "hive":
             return HiveConnector(config, options)
         elif source_type == "impala":
@@ -146,7 +143,6 @@ __all__ = [
     "SchemaSearchOptions",
     "PostgresConnector",
     "MySqlConnector",
-    "SqliteConnector",
     "HiveConnector",
     "ImpalaConnector",
 ]

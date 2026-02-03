@@ -11,3 +11,5 @@ applications:
       PYTHONUNBUFFERED: "1"
     health-check-type: http
     health-check-http-endpoint: /health
+    routes:
+      - route: opendb-mcp.your-domain.com

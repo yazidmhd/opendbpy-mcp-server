@@ -61,7 +61,7 @@ CLAUDE DESKTOP INTEGRATION:
     }}
   }}
 
-For more information, see: https://github.com/anthropics/opendb-mcp-server
+For more information, see: https://github.com/anthropics/opendb-mcp
 """,
     )
 

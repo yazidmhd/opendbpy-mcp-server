@@ -2,6 +2,7 @@
 Configuration module for OpenDB MCP Server.
 """
 
+from .keytab import KeytabError, process_keytab_contents
 from .loader import create_config_from_dsn, load_config
 from .types import (
     AuthMechanism,
@@ -29,4 +30,6 @@ __all__ = [
     "Settings",
     "OpenDBConfig",
     "ParsedConfig",
+    "KeytabError",
+    "process_keytab_contents",
 ]

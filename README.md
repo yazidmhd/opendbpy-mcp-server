@@ -22,7 +22,7 @@ A multi-database MCP (Model Context Protocol) server for Python, supporting Post
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/anthropics/opendb-mcp-server
+git clone https://github.com/anthropics/opendb-mcp
 cd opendbpy-mcp-server
 ```
 
@@ -143,7 +143,7 @@ claude mcp add opendb -- python3 -m opendb_mcp --config /path/to/config.toml
 Or if installed globally:
 
 ```bash
-claude mcp add opendb -- opendb-mcp-server --config /path/to/config.toml
+claude mcp add opendb -- opendb-mcp --config /path/to/config.toml
 ```
 
 ### Add to Claude Desktop (Stdio)
@@ -167,7 +167,7 @@ Or using the installed command:
 {
   "mcpServers": {
     "opendb": {
-      "command": "opendb-mcp-server",
+      "command": "opendb-mcp",
       "args": ["--config", "/path/to/config.toml"]
     }
   }
@@ -288,7 +288,7 @@ claude mcp remove opendb
 
 ```bash
 # Clone and install
-git clone https://github.com/anthropics/opendb-mcp-server
+git clone https://github.com/anthropics/opendb-mcp
 cd opendbpy-mcp-server
 
 # Using uv (faster)

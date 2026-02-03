@@ -47,6 +47,7 @@ class KerberosSourceConfig(BaseSourceConfig):
     auth_mechanism: AuthMechanism = Field("NONE", description="Authentication mechanism")
     principal: Optional[str] = Field(None, description="Kerberos service principal")
     keytab: Optional[str] = Field(None, description="Path to keytab file")
+    keytab_content: Optional[str] = Field(None, description="Base64-encoded keytab content")
     user_principal: Optional[str] = Field(None, description="User principal for kinit")
 
 
@@ -100,7 +101,7 @@ def parse_source_config(data: dict) -> SourceConfig:
 
     if source_type in ("hive", "impala"):
         # Check if it's a Kerberos config
-        if "auth_mechanism" in data or "keytab" in data or "principal" in data:
+        if "auth_mechanism" in data or "keytab" in data or "keytab_content" in data or "principal" in data:
             return KerberosSourceConfig(**data)
         # Fall through to host-based if no Kerberos fields
         if "host" in data:

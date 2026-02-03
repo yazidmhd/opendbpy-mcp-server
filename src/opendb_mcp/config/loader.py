@@ -10,6 +10,7 @@ from typing import Any
 
 from ..constants import ENV_VAR_PATTERN
 from ..utils.logger import logger
+from .keytab import process_keytab_contents
 from .types import ParsedConfig, Settings, parse_source_config
 
 # Use tomllib for Python 3.11+, tomli for earlier versions
@@ -105,6 +106,10 @@ def load_config(config_path: str) -> ParsedConfig:
 
     # Parse sources
     sources_data = substituted.get("sources", [])
+
+    # Process keytab_content fields (decode base64 and write keytab files)
+    config_dir = resolved_path.parent
+    sources_data = process_keytab_contents(sources_data, config_dir)
     sources: dict[str, Any] = {}
 
     for source_data in sources_data:

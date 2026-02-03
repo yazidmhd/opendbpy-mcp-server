@@ -17,7 +17,7 @@ DEFAULT_QUERY_TIMEOUT = 30
 DEFAULT_CONNECTION_TIMEOUT = 10
 
 # Server name and version
-SERVER_NAME = "opendb-mcp-server"
+SERVER_NAME = "opendb-mcp"
 SERVER_VERSION = "1.0.0"
 
 # Environment variable pattern for config substitution

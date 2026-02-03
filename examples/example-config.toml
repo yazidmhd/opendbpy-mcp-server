@@ -65,7 +65,7 @@ database = "default"
 auth_mechanism = "NONE"
 
 
-# Apache Hive Example (Kerberos)
+# Apache Hive Example (Kerberos with keytab file)
 [[sources]]
 id = "hive-secure"
 type = "hive"
@@ -75,6 +75,21 @@ database = "production"
 auth_mechanism = "KERBEROS"
 principal = "hive/_HOST@EXAMPLE.COM"
 keytab = "/etc/security/keytabs/user.keytab"
+user_principal = "user@EXAMPLE.COM"
+
+
+# Apache Hive Example (Kerberos with base64 keytab content)
+# Use this when you want to store the keytab as an environment variable
+# Generate with: base64 -i keytab.keytab (macOS) or base64 -w0 keytab.keytab (Linux)
+[[sources]]
+id = "hive-secure-b64"
+type = "hive"
+host = "secure-hive.example.com"
+port = 10000
+database = "production"
+auth_mechanism = "KERBEROS"
+principal = "hive/_HOST@EXAMPLE.COM"
+keytab_content = "${HIVE_KEYTAB_B64}"  # Base64-encoded keytab content
 user_principal = "user@EXAMPLE.COM"
 
 

@@ -204,6 +204,7 @@ class OpenDBServer:
         """Start the server with streamable HTTP transport."""
         try:
             from starlette.applications import Starlette
+            from starlette.middleware.cors import CORSMiddleware
             from starlette.responses import JSONResponse
             from starlette.routing import Route, Mount
             from mcp.server.streamable_http import StreamableHTTPServerTransport
@@ -234,6 +235,14 @@ class OpenDBServer:
                 Route("/health", health_check, methods=["GET"]),
                 Mount("/mcp", app=http_transport.handle_request),
             ]
+        )
+
+        # Add CORS middleware to allow all origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
         )
 
         config = uvicorn.Config(

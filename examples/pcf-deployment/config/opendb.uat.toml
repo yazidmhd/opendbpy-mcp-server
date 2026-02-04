@@ -1,0 +1,19 @@
+# OpenDB MCP Server - UAT Environment Configuration
+# For PCF deployment where /etc/krb5.conf is not available
+
+[settings]
+readonly = false
+max_rows = 1000
+query_timeout = 30
+
+[[sources]]
+id = "impala-uat"
+type = "impala"
+host = "impala-uat.example.com"
+port = 21050
+database = "analytics"
+auth_mechanism = "KERBEROS"
+principal = "impala/_HOST@UAT.EXAMPLE.COM"
+keytab_content = "${IMPALA_KEYTAB_B64}"   # Base64 keytab from env var
+user_principal = "svc-opendb@UAT.EXAMPLE.COM"
+krb5_conf = "krb5/krb5.uat.conf"          # Relative path - resolved to config dir

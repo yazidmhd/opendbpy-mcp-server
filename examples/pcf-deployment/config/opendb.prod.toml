@@ -1,0 +1,19 @@
+# OpenDB MCP Server - PROD Environment Configuration
+# For PCF deployment where /etc/krb5.conf is not available
+
+[settings]
+readonly = true  # Read-only in production
+max_rows = 500
+query_timeout = 60
+
+[[sources]]
+id = "impala-prod"
+type = "impala"
+host = "impala-prod.example.com"
+port = 21050
+database = "analytics"
+auth_mechanism = "KERBEROS"
+principal = "impala/_HOST@PROD.EXAMPLE.COM"
+keytab_content = "${IMPALA_KEYTAB_B64}"   # Base64 keytab from env var
+user_principal = "svc-opendb@PROD.EXAMPLE.COM"
+krb5_conf = "krb5/krb5.prod.conf"         # Relative path - resolved to config dir

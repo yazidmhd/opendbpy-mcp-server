@@ -58,7 +58,11 @@ class ImpalaConnector(BaseConnector):
                     and config.user_principal
                 ):
                     self._kerberos_auth = KerberosAuth(
-                        KerberosConfig(keytab=config.keytab, principal=config.user_principal)
+                        KerberosConfig(
+                            keytab=config.keytab,
+                            principal=config.user_principal,
+                            krb5_conf=config.krb5_conf,
+                        )
                     )
                     await self._kerberos_auth.initialize()
 
@@ -88,7 +92,7 @@ class ImpalaConnector(BaseConnector):
         if isinstance(config, KerberosSourceConfig):
             if config.auth_mechanism == "KERBEROS":
                 auth = "KERBEROS"
-                kerberos_service_name = config.principal or "impala"
+                kerberos_service_name = "impala"
             elif config.auth_mechanism == "PLAIN":
                 auth = "LDAP"
             else:

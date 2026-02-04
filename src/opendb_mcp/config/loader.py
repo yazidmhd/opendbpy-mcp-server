@@ -84,6 +84,21 @@ def validate_keytab(keytab_path: str) -> None:
         )
 
 
+def validate_krb5_conf(krb5_conf_path: str, config_dir: Path) -> str:
+    """Validate krb5.conf exists and resolve relative paths."""
+    path = Path(krb5_conf_path)
+
+    if not path.is_absolute():
+        path = config_dir / path
+
+    resolved_path = path.resolve()
+
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"krb5.conf not found: {resolved_path}")
+
+    return str(resolved_path)
+
+
 def load_config(config_path: str) -> ParsedConfig:
     """Load and parse a TOML configuration file."""
     resolved_path = Path(config_path).resolve()
@@ -120,13 +135,19 @@ def load_config(config_path: str) -> ParsedConfig:
         if source_id in sources:
             raise ValueError(f"Duplicate source ID: {source_id}")
 
-        # Validate keytab for Kerberos sources
+        # Validate keytab and krb5_conf for Kerberos sources
         source_type = source_data.get("type")
         if source_type in ("hive", "impala"):
             auth_mechanism = source_data.get("auth_mechanism")
             keytab = source_data.get("keytab")
             if auth_mechanism == "KERBEROS" and keytab:
                 validate_keytab(keytab)
+
+            # Resolve krb5_conf path for Kerberos sources
+            krb5_conf = source_data.get("krb5_conf")
+            if auth_mechanism == "KERBEROS" and krb5_conf:
+                resolved_krb5_conf = validate_krb5_conf(krb5_conf, config_dir)
+                source_data["krb5_conf"] = resolved_krb5_conf
 
         source = parse_source_config(source_data)
         sources[source_id] = source

@@ -114,3 +114,19 @@ auth_mechanism = "KERBEROS"
 principal = "impala/_HOST@EXAMPLE.COM"
 keytab = "/etc/security/keytabs/user.keytab"
 user_principal = "user@EXAMPLE.COM"
+
+
+# Apache Impala Example (Kerberos with krb5.conf for PCF deployment)
+# Use this when deploying to environments like PCF where /etc/krb5.conf is not available.
+# krb5_conf can be a relative path (resolved from config file directory) or absolute path.
+[[sources]]
+id = "impala-pcf"
+type = "impala"
+host = "impala-uat.example.com"
+port = 21050
+database = "analytics"
+auth_mechanism = "KERBEROS"
+principal = "impala/_HOST@EXAMPLE.COM"
+keytab_content = "${IMPALA_KEYTAB_B64}"  # Base64 keytab from env var
+user_principal = "user@EXAMPLE.COM"
+krb5_conf = "krb5/krb5.uat.conf"         # Relative path - resolved to config dir

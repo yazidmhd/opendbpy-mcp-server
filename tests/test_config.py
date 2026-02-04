@@ -1,11 +1,14 @@
 """Tests for configuration module."""
 
 import os
+from pathlib import Path
+
 import pytest
 from opendb_mcp.config.loader import (
     substitute_env_vars,
     substitute_env_vars_in_object,
     create_config_from_dsn,
+    validate_krb5_conf,
 )
 from opendb_mcp.config.types import Settings, parse_source_config
 
@@ -115,3 +118,48 @@ class TestDsnConfig:
     def test_invalid_dsn(self):
         with pytest.raises(ValueError):
             create_config_from_dsn("invalid://localhost/test")
+
+
+class TestValidateKrb5Conf:
+    """Tests for validate_krb5_conf function."""
+
+    def test_resolves_relative_path(self, tmp_path):
+        """Test that relative paths are resolved relative to config_dir."""
+        # Create krb5.conf file
+        krb5_dir = tmp_path / "krb5"
+        krb5_dir.mkdir()
+        krb5_file = krb5_dir / "krb5.conf"
+        krb5_file.write_text("[libdefaults]\ndefault_realm = EXAMPLE.COM\n")
+
+        result = validate_krb5_conf("krb5/krb5.conf", tmp_path)
+
+        assert result == str(krb5_file.resolve())
+
+    def test_preserves_absolute_path(self, tmp_path):
+        """Test that absolute paths are preserved."""
+        # Create krb5.conf file
+        krb5_file = tmp_path / "krb5.conf"
+        krb5_file.write_text("[libdefaults]\ndefault_realm = EXAMPLE.COM\n")
+
+        result = validate_krb5_conf(str(krb5_file), tmp_path)
+
+        assert result == str(krb5_file.resolve())
+
+    def test_raises_error_for_missing_file(self, tmp_path):
+        """Test that FileNotFoundError is raised if krb5.conf doesn't exist."""
+        with pytest.raises(FileNotFoundError) as exc_info:
+            validate_krb5_conf("nonexistent/krb5.conf", tmp_path)
+
+        assert "krb5.conf not found" in str(exc_info.value)
+
+    def test_resolves_nested_relative_path(self, tmp_path):
+        """Test that nested relative paths are resolved correctly."""
+        # Create nested directory structure
+        nested_dir = tmp_path / "config" / "kerberos" / "conf"
+        nested_dir.mkdir(parents=True)
+        krb5_file = nested_dir / "krb5.conf"
+        krb5_file.write_text("[libdefaults]\ndefault_realm = EXAMPLE.COM\n")
+
+        result = validate_krb5_conf("config/kerberos/conf/krb5.conf", tmp_path)
+
+        assert result == str(krb5_file.resolve())

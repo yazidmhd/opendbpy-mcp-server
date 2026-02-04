@@ -49,6 +49,7 @@ class KerberosSourceConfig(BaseSourceConfig):
     keytab: Optional[str] = Field(None, description="Path to keytab file")
     keytab_content: Optional[str] = Field(None, description="Base64-encoded keytab content")
     user_principal: Optional[str] = Field(None, description="User principal for kinit")
+    krb5_conf: Optional[str] = Field(None, description="Path to krb5.conf file")
 
 
 # Union type for all source configurations

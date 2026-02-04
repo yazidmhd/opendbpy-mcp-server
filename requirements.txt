@@ -12,3 +12,4 @@ aiomysql>=0.2
 pyhive[hive_pure_sasl]>=0.7
 thrift>=0.16
 pure-sasl>=0.6
+kerberos>=1.3

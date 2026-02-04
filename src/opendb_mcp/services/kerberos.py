@@ -21,6 +21,7 @@ class KerberosConfig:
 
     keytab: str
     principal: str
+    krb5_conf: Optional[str] = None
 
 
 class KerberosAuth:
@@ -99,15 +100,28 @@ class KerberosAuth:
         await self._kinit(str(keytab_path), self.config.principal)
         self._schedule_refresh()
 
+    def _get_env_with_krb5_config(self) -> Optional[dict[str, str]]:
+        """Get environment with KRB5_CONFIG set if krb5_conf is configured."""
+        if self.config.krb5_conf:
+            env = os.environ.copy()
+            env["KRB5_CONFIG"] = self.config.krb5_conf
+            logger.debug(f"Using custom krb5.conf: {self.config.krb5_conf}")
+            return env
+        return None
+
     async def _kinit(self, keytab_path: str, principal: str) -> None:
         """Run kinit to obtain Kerberos ticket."""
+        env = self._get_env_with_krb5_config()
+
         process = await asyncio.create_subprocess_exec(
             "kinit",
-            "-kt",
+            "-k",
+            "-t",
             keytab_path,
             principal,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
 
         _, stderr = await process.communicate()
@@ -120,10 +134,13 @@ class KerberosAuth:
 
     async def _kdestroy(self) -> None:
         """Run kdestroy to destroy Kerberos credentials."""
+        env = self._get_env_with_krb5_config()
+
         process = await asyncio.create_subprocess_exec(
             "kdestroy",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
 
         await process.communicate()
@@ -134,11 +151,14 @@ class KerberosAuth:
     async def _get_ticket_expiry(self) -> Optional[datetime]:
         """Get ticket expiry time from klist."""
         try:
+            env = self._get_env_with_krb5_config()
+
             process = await asyncio.create_subprocess_exec(
                 "klist",
                 "-c",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
 
             stdout, _ = await process.communicate()

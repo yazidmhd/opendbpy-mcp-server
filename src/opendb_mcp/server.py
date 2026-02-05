@@ -217,30 +217,38 @@ class OpenDBServer:
 
         port = self.options.port
 
-        async def handle_mcp(scope, receive, send):
-            """Handle MCP requests - creates new transport per request for stateless mode."""
-            transport = StreamableHTTPServerTransport(
-                mcp_session_id=None,  # stateless
-                is_json_response_enabled=True,
-            )
+        # Create ASGI app class for MCP handling - Starlette requires this pattern
+        # for raw ASGI handlers (plain async functions get wrapped differently)
+        class MCPHandler:
+            def __init__(self, mcp_server: Server):
+                self.mcp_server = mcp_server
 
-            async with transport.connect() as (read_stream, write_stream):
-                server_task = asyncio.create_task(
-                    self.server.run(
-                        read_stream,
-                        write_stream,
-                        self.server.create_initialization_options(),
-                        stateless=True,  # Allow initialization from any node
-                    )
+            async def __call__(self, scope, receive, send):
+                """Handle MCP requests - creates new transport per request for stateless mode."""
+                transport = StreamableHTTPServerTransport(
+                    mcp_session_id=None,  # stateless
+                    is_json_response_enabled=True,
                 )
-                try:
-                    await transport.handle_request(scope, receive, send)
-                finally:
-                    server_task.cancel()
+
+                async with transport.connect() as (read_stream, write_stream):
+                    server_task = asyncio.create_task(
+                        self.mcp_server.run(
+                            read_stream,
+                            write_stream,
+                            self.mcp_server.create_initialization_options(),
+                            stateless=True,  # Allow initialization from any node
+                        )
+                    )
                     try:
-                        await server_task
-                    except asyncio.CancelledError:
-                        pass
+                        await transport.handle_request(scope, receive, send)
+                    finally:
+                        server_task.cancel()
+                        try:
+                            await server_task
+                        except asyncio.CancelledError:
+                            pass
+
+        mcp_handler = MCPHandler(self.server)
 
         async def health_check(request: Any) -> JSONResponse:
             """Health check endpoint."""
@@ -253,7 +261,7 @@ class OpenDBServer:
         app = Starlette(
             routes=[
                 Route("/health", health_check, methods=["GET"]),
-                Route("/mcp", handle_mcp, methods=["GET", "POST"]),
+                Route("/mcp", mcp_handler, methods=["GET", "POST"]),
             ],
         )
 

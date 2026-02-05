@@ -30,6 +30,7 @@ class ImpalaConnector(BaseConnector):
         super().__init__(config, options)
         self._connection: Any = None
         self._kerberos_auth: Optional[KerberosAuth] = None
+        self._execute_lock = asyncio.Lock()
 
     @property
     def db_type(self) -> str:
@@ -135,10 +136,11 @@ class ImpalaConnector(BaseConnector):
             raise QueryError(self.source_id, sql, Exception("Not connected"))
 
         try:
-            result = await asyncio.to_thread(
-                self._execute_sync, sql, params, max_rows
-            )
-            return result
+            async with self._execute_lock:
+                result = await asyncio.to_thread(
+                    self._execute_sync, sql, params, max_rows
+                )
+                return result
 
         except Exception as e:
             raise QueryError(self.source_id, sql, e) from e

@@ -4,7 +4,6 @@ MCP Server setup and transport handling.
 Supports both stdio and streamable HTTP transports.
 """
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
@@ -201,14 +200,15 @@ class OpenDBServer:
             )
 
     async def _start_http(self) -> None:
-        """Start the server with streamable HTTP transport."""
+        """Start the server with streamable HTTP transport (stateless mode)."""
         try:
             from starlette.applications import Starlette
             from starlette.middleware.cors import CORSMiddleware
             from starlette.responses import JSONResponse
-            from starlette.routing import Route, Mount
+            from starlette.routing import Route
             from mcp.server.streamable_http import StreamableHTTPServerTransport
             import uvicorn
+            import asyncio
         except ImportError as e:
             raise ImportError(
                 "HTTP transport requires additional dependencies. "
@@ -216,10 +216,31 @@ class OpenDBServer:
             ) from e
 
         port = self.options.port
-        http_transport = StreamableHTTPServerTransport(
-            mcp_session_id=None,
-            is_json_response_enabled=True,
-        )
+
+        async def handle_mcp(scope, receive, send):
+            """Handle MCP requests - creates new transport per request for stateless mode."""
+            transport = StreamableHTTPServerTransport(
+                mcp_session_id=None,  # stateless
+                is_json_response_enabled=True,
+            )
+
+            async with transport.connect() as (read_stream, write_stream):
+                server_task = asyncio.create_task(
+                    self.server.run(
+                        read_stream,
+                        write_stream,
+                        self.server.create_initialization_options(),
+                        stateless=True,  # Allow initialization from any node
+                    )
+                )
+                try:
+                    await transport.handle_request(scope, receive, send)
+                finally:
+                    server_task.cancel()
+                    try:
+                        await server_task
+                    except asyncio.CancelledError:
+                        pass
 
         async def health_check(request: Any) -> JSONResponse:
             """Health check endpoint."""
@@ -229,15 +250,13 @@ class OpenDBServer:
                 "sources": self.connector_manager.list_source_ids(),
             })
 
-        # Mount the transport's handle_request directly as an ASGI app
         app = Starlette(
             routes=[
                 Route("/health", health_check, methods=["GET"]),
-                Mount("/mcp", app=http_transport.handle_request),
-            ]
+                Route("/mcp", handle_mcp, methods=["GET", "POST"]),
+            ],
         )
 
-        # Add CORS middleware to allow all origins
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -254,19 +273,10 @@ class OpenDBServer:
         self._http_server = uvicorn.Server(config)
 
         logger.info(f"MCP server starting with HTTP transport on port {port}")
-        logger.info(f"MCP endpoint: http://localhost:{port}/mcp")
-        logger.info(f"Health check: http://localhost:{port}/health")
+        logger.info(f"MCP endpoint: http://0.0.0.0:{port}/mcp")
+        logger.info(f"Health check: http://0.0.0.0:{port}/health")
 
-        async with http_transport.connect() as streams:
-            server_task = asyncio.create_task(
-                self.server.run(
-                    streams[0],
-                    streams[1],
-                    self.server.create_initialization_options(),
-                )
-            )
-            await self._http_server.serve()
-            server_task.cancel()
+        await self._http_server.serve()
 
     async def start(self) -> None:
         """Start the MCP server."""

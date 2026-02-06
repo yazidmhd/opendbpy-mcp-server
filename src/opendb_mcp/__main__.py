@@ -16,7 +16,7 @@ from typing import Optional
 from .config import create_config_from_dsn, load_config
 from .constants import SERVER_NAME, SERVER_VERSION
 from .server import OpenDBServer, ServerOptions
-from .utils.logger import logger
+from .utils.logger import configure_root_logger, logger
 
 
 def parse_args() -> argparse.Namespace:
@@ -137,6 +137,9 @@ async def run_server(server: OpenDBServer) -> None:
 
 def main() -> None:
     """Main entry point."""
+    # Suppress noisy MCP library warnings (benign in stateless mode)
+    configure_root_logger()
+
     args = parse_args()
 
     # Determine config source

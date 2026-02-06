@@ -17,6 +17,27 @@ LOG_LEVELS = {
 }
 
 
+class MCPNotificationFilter(logging.Filter):
+    """Filter to suppress benign MCP notification validation warnings.
+
+    In stateless HTTP mode, the server is pre-initialized so the
+    'notifications/initialized' validation failure is harmless noise.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno == logging.WARNING:
+            msg = record.getMessage()
+            if "Failed to validate notification" in msg:
+                return False
+        return True
+
+
+def configure_root_logger() -> None:
+    """Configure root logger to suppress noisy MCP library warnings."""
+    root_logger = logging.getLogger()
+    root_logger.addFilter(MCPNotificationFilter())
+
+
 class StderrHandler(logging.Handler):
     """Custom handler that always writes to stderr."""
 

@@ -1,0 +1,14 @@
+# OpenDB MCP Server - DEV Environment Configuration
+
+[settings]
+readonly = true
+max_rows = 1000
+query_timeout = 30
+
+[[sources]]
+id = "mydb"
+type = "mysql"
+host = "localhost"
+port = 3306
+user = "root"
+password = "password"

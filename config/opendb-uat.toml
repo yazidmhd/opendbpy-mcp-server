@@ -1,0 +1,26 @@
+# OpenDB MCP Server - UAT Environment Configuration
+
+[settings]
+readonly = true
+max_rows = 1000
+query_timeout = 30
+
+[[sources]]
+id = "mydb"
+type = "mysql"
+host = "localhost"
+port = 3306
+user = "root"
+password = "password"
+
+[[sources]]
+id = "impala-uat"
+type = "impala"
+host = "impala-uat.example.com"
+port = 21050
+database = "app_example"
+auth_mechanism = "KERBEROS"
+principal = "impala/impala-uat.example.com""
+keytab_content = "thisisabase64valueexample"
+user_principal = "testapp@EXAMPLE.UAT.CORP.COM"
+krb5_conf = "krb5/krb5.uat.conf"      

@@ -133,6 +133,9 @@ class HiveConnector(BaseConnector):
         if not self._connection:
             raise QueryError(self.source_id, sql, Exception("Not connected"))
 
+        if self._kerberos_auth:
+            await self._kerberos_auth.ensure_valid()
+
         try:
             async with self._execute_lock:
                 result = await asyncio.to_thread(

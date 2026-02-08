@@ -249,7 +249,7 @@ Similar to PostgreSQL connector but uses `aiomysql` library. Handles both MySQL 
 
 #### `hive.py` and `impala.py` - Apache Connectors
 
-Connect to Hadoop ecosystem databases. Support Kerberos authentication for secure enterprise environments.
+Connect to Hadoop ecosystem databases. Support Kerberos authentication for secure enterprise environments. Before each query, they call `ensure_valid()` on their `KerberosAuth` instance to guarantee a valid ticket exists — running `kinit` only when the ticket is expired or near-expiry.
 
 #### `__init__.py` - Connector Factory/Manager
 
@@ -310,18 +310,35 @@ Simple tool that returns all configured database sources with their status.
 
 #### `kerberos.py` - Kerberos Ticket Management
 
-Handles Kerberos authentication for secure Hive/Impala connections:
+Handles Kerberos authentication for secure Hive/Impala connections using a **per-query validation** pattern (similar to how Spring Boot projects run `kinit` before every Impala communication).
 
-1. Runs `kinit` to get a Kerberos ticket
-2. Tracks when tickets expire
-3. Automatically refreshes tickets before they expire
+**How it works:**
+
+1. Before each query, `ensure_valid()` checks if the ticket is still valid (with a 5-minute buffer before expiry)
+2. If valid → skips `kinit` (just a datetime comparison, ~microseconds)
+3. If expired or near-expiry → runs `kinit` to get a fresh ticket
+4. If `kinit` fails → current query fails, but the **next query retries automatically** (self-healing)
 
 ```python
 class KerberosAuth:
-    async def initialize(self) -> None:
-        await self._kinit(keytab_path, principal)  # Get ticket
-        self._schedule_refresh()  # Auto-refresh before expiry
+    TICKET_EXPIRY_BUFFER = timedelta(minutes=5)
+
+    async def ensure_valid(self) -> None:
+        """Check ticket validity, run kinit if needed."""
+        if self._is_ticket_valid():
+            return  # Ticket still good, skip kinit
+        await self._kinit(keytab_path, principal)  # Refresh ticket
+
+    def _is_ticket_valid(self) -> bool:
+        """Returns False if not initialized, no expiry, or within 5 min of expiry."""
+        if not self._initialized or self._ticket_expiry is None:
+            return False
+        return datetime.now() < (self._ticket_expiry - self.TICKET_EXPIRY_BUFFER)
 ```
+
+**Why per-query instead of background refresh?** A background task that refreshes on a schedule will die permanently if `kinit` fails once (e.g. KDC temporarily unreachable). The per-query approach is self-healing — each query is an independent retry opportunity.
+
+**Multi-source note:** When multiple sources (e.g. t1-impala, t2-impala) share the same principal and `krb5.conf`, they share the same default credential cache. This works correctly — both refresh the same ticket. If sources with **different** principals/realms are needed in the future, credential cache isolation via `KRB5CCNAME` per source would be required.
 
 ---
 
@@ -497,6 +514,8 @@ AI: "execute_sql with sql='SELECT * FROM users'"
          │       │
          │       ├── _is_write_query() - Check if allowed
          │       └── _execute_query() - Actually run it
+         │               │
+         │               └── (Hive/Impala) ensure_valid() - kinit if ticket expired
          │
          └── format_query_results() - Format as Markdown
                  │

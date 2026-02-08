@@ -2,11 +2,13 @@
 
 import asyncio
 import os
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from opendb_mcp.services.kerberos import KerberosAuth, KerberosConfig
+from opendb_mcp.utils.errors import KerberosError
 
 
 class TestKerberosConfig:
@@ -215,3 +217,184 @@ class TestKerberosAuthGetTicketExpiry:
 
         assert captured_env is not None
         assert captured_env["KRB5_CONFIG"] == "/custom/krb5.conf"
+
+
+class TestIsTicketValid:
+    """Tests for KerberosAuth._is_ticket_valid()."""
+
+    def test_returns_false_when_not_initialized(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+
+        assert auth._is_ticket_valid() is False
+
+    def test_returns_false_when_no_expiry(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = None
+
+        assert auth._is_ticket_valid() is False
+
+    def test_returns_false_when_expired(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() - timedelta(hours=1)
+
+        assert auth._is_ticket_valid() is False
+
+    def test_returns_false_when_within_buffer(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        # Expires in 3 minutes — within the 5-minute buffer
+        auth._ticket_expiry = datetime.now() + timedelta(minutes=3)
+
+        assert auth._is_ticket_valid() is False
+
+    def test_returns_true_when_well_before_expiry(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() + timedelta(hours=7)
+
+        assert auth._is_ticket_valid() is True
+
+    def test_is_valid_delegates_to_is_ticket_valid(self):
+        config = KerberosConfig(keytab="/path/to/keytab", principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() + timedelta(hours=7)
+
+        assert auth.is_valid() is True
+
+        auth._ticket_expiry = datetime.now() - timedelta(hours=1)
+        assert auth.is_valid() is False
+
+
+class TestEnsureValid:
+    """Tests for KerberosAuth.ensure_valid()."""
+
+    @pytest.mark.asyncio
+    async def test_skips_kinit_when_ticket_valid(self, tmp_path):
+        """ensure_valid() should not run kinit when ticket is still valid."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() + timedelta(hours=7)
+
+        with patch.object(auth, "_kinit", new_callable=AsyncMock) as mock_kinit:
+            await auth.ensure_valid()
+            mock_kinit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_runs_kinit_when_expired(self, tmp_path):
+        """ensure_valid() should run kinit when ticket is expired."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() - timedelta(hours=1)
+
+        with patch.object(auth, "_kinit", new_callable=AsyncMock) as mock_kinit:
+            await auth.ensure_valid()
+            mock_kinit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_runs_kinit_when_near_expiry(self, tmp_path):
+        """ensure_valid() should run kinit when ticket is within buffer."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+        auth._initialized = True
+        auth._ticket_expiry = datetime.now() + timedelta(minutes=3)
+
+        with patch.object(auth, "_kinit", new_callable=AsyncMock) as mock_kinit:
+            await auth.ensure_valid()
+            mock_kinit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_runs_kinit_when_not_initialized(self, tmp_path):
+        """ensure_valid() should run kinit when not yet initialized."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+
+        with patch.object(auth, "_kinit", new_callable=AsyncMock) as mock_kinit:
+            await auth.ensure_valid()
+            mock_kinit.assert_called_once()
+            assert auth._initialized is True
+
+    @pytest.mark.asyncio
+    async def test_raises_on_kinit_failure(self, tmp_path):
+        """ensure_valid() should raise KerberosError when kinit fails."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+
+        with patch.object(
+            auth, "_kinit", new_callable=AsyncMock, side_effect=KerberosError("kinit failed")
+        ):
+            with pytest.raises(KerberosError, match="Failed to refresh Kerberos ticket"):
+                await auth.ensure_valid()
+
+    @pytest.mark.asyncio
+    async def test_self_heals_on_retry_after_failure(self, tmp_path):
+        """After a kinit failure, the next ensure_valid() call should retry."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+
+        # First call fails
+        with patch.object(
+            auth, "_kinit", new_callable=AsyncMock, side_effect=KerberosError("KDC unreachable")
+        ):
+            with pytest.raises(KerberosError):
+                await auth.ensure_valid()
+
+        # Second call succeeds
+        with patch.object(auth, "_kinit", new_callable=AsyncMock) as mock_kinit:
+            await auth.ensure_valid()
+            mock_kinit.assert_called_once()
+            assert auth._initialized is True
+
+
+class TestInitializeWithoutGuard:
+    """Tests that initialize() can be called multiple times."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_can_be_called_twice(self, tmp_path):
+        """initialize() should run kinit even if already initialized."""
+        keytab_file = tmp_path / "test.keytab"
+        keytab_file.write_bytes(b"test keytab content")
+
+        config = KerberosConfig(keytab=str(keytab_file), principal="user@REALM")
+        auth = KerberosAuth(config)
+
+        async def mock_subprocess(*args, **kwargs):
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
+            return mock_process
+
+        with patch("asyncio.create_subprocess_exec", side_effect=mock_subprocess):
+            await auth.initialize()
+            assert auth._initialized is True
+
+            # Call again — should not raise or short-circuit
+            await auth.initialize()
+            assert auth._initialized is True

@@ -27,11 +27,12 @@ class KerberosConfig:
 class KerberosAuth:
     """Manages Kerberos authentication using keytab files."""
 
+    TICKET_EXPIRY_BUFFER = timedelta(minutes=5)
+
     def __init__(self, config: KerberosConfig):
         self.config = config
         self._initialized = False
         self._ticket_expiry: Optional[datetime] = None
-        self._refresh_task: Optional[asyncio.Task] = None
 
     @property
     def is_initialized(self) -> bool:
@@ -40,9 +41,6 @@ class KerberosAuth:
 
     async def initialize(self) -> None:
         """Initialize Kerberos authentication using keytab."""
-        if self._initialized:
-            return
-
         keytab_path = Path(self.config.keytab).resolve()
 
         # Validate keytab file exists
@@ -59,21 +57,12 @@ class KerberosAuth:
         try:
             await self._kinit(str(keytab_path), self.config.principal)
             self._initialized = True
-            self._schedule_refresh()
             logger.info(f"Kerberos authentication initialized for {self.config.principal}")
         except Exception as e:
             raise KerberosError(f"Failed to initialize Kerberos: {e}", e) from e
 
     async def destroy(self) -> None:
         """Destroy Kerberos credentials."""
-        if self._refresh_task:
-            self._refresh_task.cancel()
-            try:
-                await self._refresh_task
-            except asyncio.CancelledError:
-                pass
-            self._refresh_task = None
-
         try:
             await self._kdestroy()
             self._initialized = False
@@ -84,21 +73,28 @@ class KerberosAuth:
 
     def is_valid(self) -> bool:
         """Check if authentication is initialized and valid."""
+        return self._is_ticket_valid()
+
+    def _is_ticket_valid(self) -> bool:
+        """Check if the current ticket is valid with expiry buffer."""
         if not self._initialized:
             return False
         if self._ticket_expiry is None:
-            return True
-        return datetime.now() < self._ticket_expiry
+            return False
+        return datetime.now() < (self._ticket_expiry - self.TICKET_EXPIRY_BUFFER)
 
-    async def refresh(self) -> None:
-        """Refresh Kerberos ticket if needed."""
-        if not self._initialized:
-            await self.initialize()
+    async def ensure_valid(self) -> None:
+        """Ensure a valid Kerberos ticket exists, running kinit if needed."""
+        if self._is_ticket_valid():
             return
 
         keytab_path = Path(self.config.keytab).resolve()
-        await self._kinit(str(keytab_path), self.config.principal)
-        self._schedule_refresh()
+        try:
+            await self._kinit(str(keytab_path), self.config.principal)
+            self._initialized = True
+            logger.info(f"Kerberos ticket refreshed for {self.config.principal}")
+        except Exception as e:
+            raise KerberosError(f"Failed to refresh Kerberos ticket: {e}", e) from e
 
     def _get_env_with_krb5_config(self) -> Optional[dict[str, str]]:
         """Get environment with KRB5_CONFIG set if krb5_conf is configured."""
@@ -190,28 +186,3 @@ class KerberosAuth:
 
         except Exception:
             return datetime.now() + timedelta(hours=8)
-
-    def _schedule_refresh(self) -> None:
-        """Schedule ticket refresh before expiry."""
-        if self._refresh_task:
-            self._refresh_task.cancel()
-
-        # Refresh 10 minutes before expiry, or in 4 hours if no expiry known
-        if self._ticket_expiry:
-            refresh_in = max(
-                0,
-                (self._ticket_expiry - datetime.now() - timedelta(minutes=10)).total_seconds(),
-            )
-        else:
-            refresh_in = 4 * 60 * 60  # 4 hours
-
-        async def refresh_loop() -> None:
-            try:
-                await asyncio.sleep(refresh_in)
-                await self.refresh()
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                logger.error(f"Failed to refresh Kerberos ticket: {e}")
-
-        self._refresh_task = asyncio.create_task(refresh_loop())

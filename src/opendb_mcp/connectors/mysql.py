@@ -46,6 +46,7 @@ class MySqlConnector(BaseConnector):
                 minsize=1,
                 maxsize=5,
                 connect_timeout=self._options.connection_timeout or 10,
+                autocommit=True,
             )
 
             # Test the connection

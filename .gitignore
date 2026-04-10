@@ -96,6 +96,9 @@ cython_debug/
 logs/
 /devlogs/
 
+# Runtime
+*.pid
+
 # Database files
 *.db
 *.sqlite
